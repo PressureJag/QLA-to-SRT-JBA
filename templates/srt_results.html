@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="results-bar">
+  <div class="results-bar-left">
+    <span class="results-icon">&#10003;</span>
+    <div>
+      <div class="results-title">SRT Question Sheets Generated</div>
+      <div class="results-sub">Year {{ analysis.year_group }} &mdash; {{ files | length }} class sheet{{ 's' if files | length != 1 else '' }} ready to download</div>
+    </div>
+  </div>
+  <div class="results-bar-right">
+    <a href="/" class="btn btn-secondary btn-sm">&#8592; New File</a>
+  </div>
+</div>
+
+{# ── Download all as ZIP ── #}
+{% if files | length > 1 %}
+<div class="zip-bar">
+  <form method="POST" action="/download-zip">
+    <input type="hidden" name="files_json" value='{{ files | tojson }}'>
+    <button type="submit" class="btn btn-primary">
+      &#128230; Download All as ZIP ({{ files | length }} files)
+    </button>
+  </form>
+  <span class="zip-hint">Or download individual class sheets below</span>
+</div>
+{% endif %}
+
+{# ── Per-group file list ── #}
+{% set ns = namespace(current_group=None) %}
+{% for f in files %}
+  {% if f.group_code != ns.current_group %}
+    {% if ns.current_group is not none %}</div>{% endif %}
+    {% set ns.current_group = f.group_code %}
+    <div class="results-group">
+    <div class="results-group-header">
+      <strong>{{ f.group_name }}</strong>
+      <span class="group-code-pill">{{ f.group_code }}</span>
+      <span class="badge badge-{{ f.ability | lower }}">{{ f.ability }}</span>
+    </div>
+  {% endif %}
+
+  <div class="file-row">
+    <div class="file-row-left">
+      <span class="file-row-icon">&#128196;</span>
+      <div>
+        <div class="file-row-class">{{ f.class_name }}</div>
+        <div class="file-row-meta">
+          {% if f.avg is not none %}Class average: {{ f.avg }}% &middot; {% endif %}
+          5 topics &middot; 1 question each &middot; Word .docx
+        </div>
+      </div>
+    </div>
+    <a href="/download/{{ f.filename }}" class="btn btn-primary btn-sm" download>
+      &#8681; Download
+    </a>
+  </div>
+
+{% endfor %}
+{% if files %}</div>{% endif %}
+
+{# ── What's in each sheet ── #}
+<div class="sheet-info-panel">
+  <h4>What's in each sheet?</h4>
+  <ul>
+    <li>School header with class name, ability group, class average, and date</li>
+    <li>Summary of the 5 topics addressed</li>
+    <li>1 targeted question per topic, calibrated to the group's ability level</li>
+    <li>Formatted appropriately: short-answer, multiple-choice, or exam-style</li>
+  </ul>
+  <p class="sheet-info-hint">&#128161; Want to adjust the number of topics, question format, or add mark schemes? Use <strong>/New Skill</strong> to extend this output.</p>
+</div>
+
+{% endblock %}

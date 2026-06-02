@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card upload-card">
+  <h2>Upload QLA Spreadsheet</h2>
+  <p class="subtitle">Upload your Question Level Analysis Excel file to generate targeted Student Response Time questions for each form group.</p>
+
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="/upload" enctype="multipart/form-data">
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">&#128196;</div>
+      <p>Drag and drop your QLA <strong>.xlsx</strong> file here</p>
+      <p class="or">or</p>
+      <label class="btn btn-secondary" for="qlaFile">Choose File</label>
+      <input type="file" id="qlaFile" name="qla_file" accept=".xlsx,.xls" style="display:none">
+      <p class="file-chosen" id="fileChosen"></p>
+    </div>
+    <div class="submit-row">
+      <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Analyse File</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const input = document.getElementById('qlaFile');
+  const chosen = document.getElementById('fileChosen');
+  const submitBtn = document.getElementById('submitBtn');
+  const dropZone = document.getElementById('dropZone');
+
+  input.addEventListener('change', () => {
+    if (input.files.length) {
+      chosen.textContent = input.files[0].name;
+      submitBtn.disabled = false;
+    }
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      chosen.textContent = file.name;
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+{% endblock %}

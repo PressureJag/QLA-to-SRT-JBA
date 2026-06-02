@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="results-header">
+  <h2>SRT Questions &mdash; Year {{ results.year_group }}</h2>
+  <div class="results-actions">
+    <button onclick="window.print()" class="btn btn-secondary">&#128438; Print</button>
+    <a href="/" class="btn btn-primary">&#8592; New File</a>
+  </div>
+</div>
+
+{% for group_code, group in results.groups.items() %}
+<section class="group-section">
+  <div class="group-section-header">
+    <h3>{{ group.name }} <span class="group-code">({{ group_code }})</span></h3>
+    <span class="badge badge-{{ group.ability | lower }}">{{ group.ability }}</span>
+  </div>
+
+  {% for class_name, class_data in group.classes.items() %}
+  <div class="class-block">
+    <div class="class-header">
+      <span class="class-title">{{ class_name }}</span>
+      {% if class_data.overall_avg is not none %}
+      <span class="class-avg">Class average: {{ class_data.overall_avg }}%</span>
+      {% endif %}
+    </div>
+
+    <div class="weak-topics-summary">
+      <strong>Weakest topics addressed:</strong>
+      {% for t in class_data.weak_topics %}
+      <span class="topic-chip {% if t.avg_pct < 40 %}topic-red{% elif t.avg_pct < 60 %}topic-amber{% else %}topic-green{% endif %}">
+        {{ t.topic }} ({{ t.avg_pct }}%)
+      </span>
+      {% endfor %}
+    </div>
+
+    <div class="questions-output">
+      {% for line in class_data.questions_text.split('\n') %}
+        {% set s = line.strip() %}
+        {% if s.startswith('TOPIC:') %}
+          <div class="topic-heading">{{ s }}</div>
+        {% elif s.startswith('___') %}
+          <hr class="topic-divider">
+        {% elif s == '' %}
+          <div class="spacer"></div>
+        {% elif s.startswith('Q') and s[1:2].isdigit() %}
+          <div class="question-line">{{ s }}</div>
+        {% elif s.startswith('Answer:') %}
+          <div class="answer-line">{{ s }}</div>
+        {% elif s[0:2] in ['A)', 'B)', 'C)', 'D)'] %}
+          <div class="mc-option">{{ s }}</div>
+        {% else %}
+          <div class="text-line">{{ s }}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+
+{% endblock %}

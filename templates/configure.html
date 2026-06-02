@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Configure Generation</h2>
+  <p class="subtitle">Year {{ scan.year_group }} &mdash; {{ scan.groups | length }} ability group(s) detected. Select which groups to generate SRT questions for.</p>
+
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="/generate">
+
+    <div class="groups-grid">
+      {% for code, group in scan.groups.items() %}
+      <div class="group-card">
+        <label class="group-label">
+          <input type="checkbox" name="groups" value="{{ code }}" checked>
+          <div class="group-info">
+            <div class="group-title">{{ group.name }} <span class="group-code">({{ code }})</span></div>
+            <div class="group-ability badge badge-{{ group.ability | lower }}">{{ group.ability }}</div>
+            <div class="group-classes">
+              {% for cls in group.classes %}
+              <span class="class-chip">{{ cls }}</span>
+              {% endfor %}
+            </div>
+            <div class="group-meta">{{ group.classes | length }} class(es) &middot; {{ group.sheets | length }} sheet(s)</div>
+          </div>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="options-row">
+      <label for="n_topics">Weakest topics per class:</label>
+      <select name="n_topics" id="n_topics">
+        <option value="3">3</option>
+        <option value="5" selected>5</option>
+        <option value="7">7</option>
+        <option value="10">10</option>
+      </select>
+    </div>
+
+    <div class="submit-row">
+      <a href="/" class="btn btn-secondary">&#8592; Back</a>
+      <button type="submit" class="btn btn-primary">Generate SRT Questions</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

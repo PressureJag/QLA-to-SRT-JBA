@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if pending_message %}
+<div class="alert alert-info">{{ pending_message }}</div>
+{% endif %}
+
+{# ── File summary bar ──────────────────────────────────────────────────── #}
+<div class="file-bar">
+  <div class="file-bar-left">
+    <span class="file-icon">&#128196;</span>
+    <div>
+      <div class="file-name">{{ data.filename }}</div>
+      <div class="file-meta">Analysed {{ data.analysed_at }}</div>
+    </div>
+  </div>
+  <div class="file-bar-right">
+    <a href="/" class="btn btn-secondary btn-sm">&#8592; Upload New File</a>
+  </div>
+</div>
+
+{# ── Cohort summary cards ──────────────────────────────────────────────── #}
+<div class="summary-cards">
+  <div class="summary-card">
+    <div class="summary-value">{{ data.total_students }}</div>
+    <div class="summary-label">Total Students</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-value">Year {{ data.year_group }}</div>
+    <div class="summary-label">Year Group</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-value">{{ data.num_groups }}</div>
+    <div class="summary-label">Ability Groups</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-value">{{ data.num_classes }}</div>
+    <div class="summary-label">Classes</div>
+  </div>
+  <div class="summary-card {% if data.cohort_avg %}{{ 'card-good' if data.cohort_avg >= 65 else ('card-mid' if data.cohort_avg >= 50 else 'card-low') }}{% endif %}">
+    <div class="summary-value">{{ data.cohort_avg }}%</div>
+    <div class="summary-label">Cohort Average</div>
+  </div>
+</div>
+
+{# ── No-data banner ────────────────────────────────────────────────────── #}
+{% if not data.has_any_scores %}
+<div class="alert alert-nodata">
+  <strong>&#9432; No student scores detected in this file.</strong>
+  The question and topic structure has been read successfully (see below).
+  Upload a QLA file that has been populated with student scores to unlock the full performance analysis and output generation.
+</div>
+{% endif %}
+
+{# ── Cross-group weak topics ───────────────────────────────────────────── #}
+{% if data.cross_group_weak %}
+<div class="insight-panel">
+  <div class="insight-header">
+    <span class="insight-icon">&#9888;</span>
+    <strong>Topics weak across multiple groups</strong>
+    <span class="insight-sub">These topics are struggling cohort-wide — priority intervention targets</span>
+  </div>
+  <div class="insight-chips">
+    {% for item in data.cross_group_weak %}
+    <div class="insight-chip">
+      <span class="chip-topic">{{ item.topic }}</span>
+      <span class="chip-groups">
+        {% for g in item.groups %}
+        <span class="chip-group-badge">{{ g.group_name }}: {{ g.avg_pct }}%</span>
+        {% endfor %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ── Per-group sections ────────────────────────────────────────────────── #}
+{% for group_code, group in data.groups.items() %}
+<div class="group-panel">
+
+  {# Group header #}
+  <div class="group-panel-header">
+    <div class="gph-left">
+      <span class="gph-name">{{ group.name }}</span>
+      <span class="group-code-pill">{{ group_code }}</span>
+      <span class="badge badge-{{ group.ability | lower }}">{{ group.ability }}</span>
+    </div>
+    <div class="gph-stats">
+      {% if group.has_scores %}
+      <span class="gph-stat"><strong>{{ group.total_students }}</strong> students</span>
+      <span class="gph-stat"><strong>{{ group.num_classes }}</strong> classes</span>
+      <span class="gph-stat avg-stat {{ group.band }}"><strong>{{ group.group_avg_pct }}%</strong> group avg</span>
+      {% else %}
+      <span class="gph-stat"><strong>{{ group.num_topics }}</strong> topics detected</span>
+      <span class="gph-stat"><strong>{{ group.total_marks | int }}</strong> total marks</span>
+      <span class="gph-stat"><strong>{{ group.sheets | length if group.sheets else '?' }}</strong> papers</span>
+      <span class="gph-stat no-data-tag">No scores yet</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not group.has_scores %}
+  {# ── No-score mode: show detected topic structure ── #}
+  <div class="panel-section">
+    <h4 class="section-title">Detected Topics &amp; Mark Allocation</h4>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr><th>#</th><th>Topic</th><th>Max Marks</th></tr>
+        </thead>
+        <tbody>
+          {% for t in group.topic_structure %}
+          <tr>
+            <td style="color:#aaa;font-size:0.8rem">{{ loop.index }}</td>
+            <td>{{ t.topic }}</td>
+            <td>{{ t.max_marks | int }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="no-data-hint">
+      &#128161; Once student scores are in the file, this panel will show full per-class performance, heatmaps, and variance analysis.
+    </p>
+  </div>
+  {% else %}
+
+  {# Class performance table #}
+  <div class="panel-section">
+    <h4 class="section-title">Class Performance</h4>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Class</th>
+            <th>Students</th>
+            <th>Average</th>
+            <th>vs Group Avg</th>
+            <th>Rank</th>
+            <th>Weakest Topic</th>
+            <th>Strongest Topic</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set sorted_classes = group.classes.items() | sort(attribute='1.rank_in_group') %}
+          {% for class_name, cls in sorted_classes %}
+          <tr>
+            <td><strong>{{ class_name }}</strong></td>
+            <td>{{ cls.student_count }}</td>
+            <td>
+              <span class="score-pill {{ cls.band }}">{{ cls.overall_avg_pct }}%</span>
+            </td>
+            <td>
+              {% if cls.vs_group_avg is not none %}
+              <span class="delta {{ 'delta-pos' if cls.vs_group_avg >= 0 else 'delta-neg' }}">
+                {{ '+' if cls.vs_group_avg >= 0 else '' }}{{ cls.vs_group_avg }}%
+              </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              <span class="rank-badge rank-{{ cls.rank_in_group }}">{{ cls.rank_in_group }}</span>
+            </td>
+            <td class="topic-cell topic-weak">{{ cls.weakest_3[0].topic if cls.weakest_3 else '—' }}</td>
+            <td class="topic-cell topic-strong">{{ cls.strongest_3[0].topic if cls.strongest_3 else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# Topic heatmap #}
+  <div class="panel-section">
+    <h4 class="section-title">
+      Topic Performance Heatmap
+      <span class="section-sub">Sorted by group average (worst first)</span>
+    </h4>
+    <div class="legend-row">
+      <span class="legend-item"><span class="swatch band-vlow"></span>&lt;30%</span>
+      <span class="legend-item"><span class="swatch band-low"></span>30–50%</span>
+      <span class="legend-item"><span class="swatch band-mid"></span>50–65%</span>
+      <span class="legend-item"><span class="swatch band-good"></span>65–80%</span>
+      <span class="legend-item"><span class="swatch band-high"></span>&gt;80%</span>
+    </div>
+    <div class="table-scroll">
+      <table class="heatmap-table">
+        <thead>
+          <tr>
+            <th class="topic-col">Topic</th>
+            <th>Max</th>
+            {% for cls in group.all_classes %}<th>{{ cls }}</th>{% endfor %}
+            <th class="group-avg-col">Group Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in group.topic_heatmap %}
+          <tr>
+            <td class="topic-col">{{ row.topic }}</td>
+            <td class="marks-col">{{ row.max_marks | int }}</td>
+            {% for cls in group.all_classes %}
+              {% set cd = row.class_data.get(cls) %}
+              {% if cd %}
+              <td class="heat-cell {{ cd.band }}" title="{{ cls }}: {{ cd.avg_pct }}% ({{ cd.num_students }} students)">
+                {{ cd.avg_pct }}%
+              </td>
+              {% else %}
+              <td class="heat-cell band-none">—</td>
+              {% endif %}
+            {% endfor %}
+            <td class="heat-cell group-avg-col {{ row.band }}"><strong>{{ row.group_avg_pct }}%</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# Topic variance: which topics show most divergence between classes #}
+  {% if group.topic_variance %}
+  <div class="panel-section">
+    <h4 class="section-title">
+      Highest Between-Class Variance
+      <span class="section-sub">Topics where classes diverge most — may indicate teaching or setting differences</span>
+    </h4>
+    <div class="variance-list">
+      {% for v in group.topic_variance %}
+      <div class="variance-row">
+        <span class="variance-topic">{{ v.topic }}</span>
+        <div class="variance-bar-wrap">
+          <div class="variance-bar" style="width: {{ [v.spread, 100]|min }}%"></div>
+        </div>
+        <span class="variance-spread">{{ v.spread }}% spread</span>
+        <span class="score-pill {{ 'band-vlow' if v.group_avg_pct < 30 else ('band-low' if v.group_avg_pct < 50 else ('band-mid' if v.group_avg_pct < 65 else 'band-good')) }}">{{ v.group_avg_pct }}% avg</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Per-class deep-dive: weakest and strongest topics #}
+  <div class="panel-section">
+    <h4 class="section-title">Per-Class Topic Breakdown</h4>
+    <div class="class-breakdown-grid">
+      {% set sorted_classes2 = group.classes.items() | sort(attribute='1.rank_in_group') %}
+      {% for class_name, cls in sorted_classes2 %}
+      <div class="class-breakdown-card">
+        <div class="cbd-header {{ cls.band }}">
+          <span class="cbd-name">{{ class_name }}</span>
+          <span class="cbd-avg">{{ cls.overall_avg_pct }}%</span>
+        </div>
+        <div class="cbd-body">
+          <div class="cbd-col">
+            <div class="cbd-col-title weak-title">&#9660; Weakest</div>
+            {% for t in cls.weakest_3 %}
+            <div class="cbd-topic-row">
+              <span class="cbd-topic-name">{{ t.topic }}</span>
+              <span class="cbd-pct {{ t.band }}">{{ t.avg_pct }}%</span>
+            </div>
+            <div class="cbd-sub-stats">
+              &sigma; {{ t.std_dev }} &nbsp;|&nbsp; 0: {{ t.pct_zero }}% &nbsp;|&nbsp; Full: {{ t.pct_full }}%
+            </div>
+            {% endfor %}
+          </div>
+          <div class="cbd-col">
+            <div class="cbd-col-title strong-title">&#9650; Strongest</div>
+            {% for t in cls.strongest_3 %}
+            <div class="cbd-topic-row">
+              <span class="cbd-topic-name">{{ t.topic }}</span>
+              <span class="cbd-pct {{ t.band }}">{{ t.avg_pct }}%</span>
+            </div>
+            <div class="cbd-sub-stats">
+              &sigma; {{ t.std_dev }} &nbsp;|&nbsp; 0: {{ t.pct_zero }}% &nbsp;|&nbsp; Full: {{ t.pct_full }}%
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% endif %}{# end has_scores #}
+</div>
+{% endfor %}
+
+{# ── Output options ────────────────────────────────────────────────────── #}
+<div class="output-options-panel">
+  <div class="oop-header">
+    <h3>Generate Outputs</h3>
+    <p class="subtitle">Select the outputs you need. More outputs will be added via <strong>/New Skill</strong>.</p>
+  </div>
+
+  <div class="output-options-grid">
+
+    {# ── SRT Question Sheets — ENABLED ── #}
+    <div class="output-option-card enabled">
+      <div class="ooc-icon">&#128221;</div>
+      <div class="ooc-title">SRT Question Sheets</div>
+      <div class="ooc-desc">1 question per weak topic &times; 5 topics &middot; one Word doc per class</div>
+      <div class="ooc-badge">Ready</div>
+      <form method="POST" action="/generate/srt" class="ooc-form">
+        <div class="ooc-group-select">
+          {% for group_code, group in data.groups.items() %}
+          <label class="ooc-group-cb">
+            <input type="checkbox" name="groups" value="{{ group_code }}" checked>
+            {{ group.name }} ({{ group_code }})
+          </label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary btn-generate"
+          {% if not data.has_any_scores %}disabled title="Upload a file with student scores first"{% endif %}>
+          {% if data.has_any_scores %}Generate Sheets{% else %}Needs score data{% endif %}
+        </button>
+        {% if generate_error %}
+        <div class="generate-error">&#9888; {{ generate_error }}</div>
+        {% endif %}
+      </form>
+    </div>
+
+    {# ── Locked cards ── #}
+    <div class="output-option-card locked">
+      <div class="ooc-icon">&#128200;</div>
+      <div class="ooc-title">Class Performance Report</div>
+      <div class="ooc-desc">Detailed breakdown of each class's strengths and gaps</div>
+      <div class="ooc-lock">Use /New Skill to enable</div>
+    </div>
+
+    <div class="output-option-card locked">
+      <div class="ooc-icon">&#128203;</div>
+      <div class="ooc-title">Group Summary Sheet</div>
+      <div class="ooc-desc">High-level one-page overview per ability group</div>
+      <div class="ooc-lock">Use /New Skill to enable</div>
+    </div>
+
+    <div class="output-option-card locked">
+      <div class="ooc-icon">&#127919;</div>
+      <div class="ooc-title">Intervention Plan</div>
+      <div class="ooc-desc">Suggested groupings and focus topics for intervention sessions</div>
+      <div class="ooc-lock">Use /New Skill to enable</div>
+    </div>
+
+    <div class="output-option-card locked">
+      <div class="ooc-icon">&#128100;</div>
+      <div class="ooc-title">Individual Student Analysis</div>
+      <div class="ooc-desc">Per-student topic scores and personalised feedback</div>
+      <div class="ooc-lock">Use /New Skill to enable</div>
+    </div>
+
+    <div class="output-option-card locked">
+      <div class="ooc-icon">&#128196;</div>
+      <div class="ooc-title">Department Overview</div>
+      <div class="ooc-desc">Cohort-wide summary suitable for line managers or HoD</div>
+      <div class="ooc-lock">Use /New Skill to enable</div>
+    </div>
+
+  </div>
+
+  <div class="oop-footer">
+    <p class="oop-hint">&#128161; Type <strong>/New Skill</strong> to tell me which output to build next — each one is tailored to your exact needs.</p>
+  </div>
+</div>
+
+{% endblock %}
