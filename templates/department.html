@@ -113,7 +113,8 @@
         {% for topic in cls.topics[:5] %}
         <div class="cfc-topic-row{% if loop.index <= 3 %} cfc-topic-priority{% endif %}">
           <div class="cfc-topic-top">
-            <span class="cfc-topic-num{% if loop.index <= 3 %} cfc-topic-num-hot{% endif %}">{{ loop.index }}</span>
+            <span class="cfc-topic-num{% if loop.index <= 3 %} cfc-topic-num-hot{% endif %}{% if topic.question_text %} has-question-num{% endif %}"
+                  {% if topic.question_text %}data-question="{{ topic.question_text | e }}"{% endif %}>{{ loop.index }}</span>
             <span class="cfc-topic-name" title="{{ topic.topic }}">{{ topic.topic }}</span>
             <span class="cfc-topic-pct {{ topic.band }}">{{ topic.avg_pct }}%</span>
           </div>
@@ -195,6 +196,12 @@
 {% endif %}
 {% endfor %}
 
+{# ── Floating question tooltip ── #}
+<div class="question-tooltip" id="questionTooltip" aria-hidden="true">
+  <div class="qt-header">&#128196; Exam Question</div>
+  <div class="qt-body" id="questionTooltipBody"></div>
+</div>
+
 <script>
 function filterGroup(code, btn) {
   document.querySelectorAll('.class-focus-card').forEach(function(card) {
@@ -203,6 +210,51 @@ function filterGroup(code, btn) {
   document.querySelectorAll('.group-tab').forEach(function(t) { t.classList.remove('active'); });
   btn.classList.add('active');
 }
+
+(function () {
+  var tooltip  = document.getElementById('questionTooltip');
+  var bodyEl   = document.getElementById('questionTooltipBody');
+  var hideTimer = null;
+  var PAD = 14;
+
+  function place(e) {
+    var tw = tooltip.offsetWidth  || 320;
+    var th = tooltip.offsetHeight || 130;
+    var x  = e.clientX + PAD;
+    var y  = e.clientY + PAD;
+    if (x + tw > window.innerWidth  - PAD) { x = e.clientX - tw - PAD; }
+    if (y + th > window.innerHeight - PAD) { y = e.clientY - th - PAD; }
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  }
+
+  function show(text, e) {
+    clearTimeout(hideTimer);
+    bodyEl.textContent = text.length > 450 ? text.slice(0, 450) + '…' : text;
+    place(e);
+    tooltip.classList.add('qt-visible');
+  }
+
+  function hide() {
+    hideTimer = setTimeout(function () {
+      tooltip.classList.remove('qt-visible');
+    }, 80);
+  }
+
+  document.addEventListener('mouseover', function (e) {
+    var el = e.target.closest('[data-question]');
+    if (el) { show(el.dataset.question, e); }
+  });
+
+  document.addEventListener('mouseout', function (e) {
+    var el = e.target.closest('[data-question]');
+    if (el) { hide(); }
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (tooltip.classList.contains('qt-visible')) { place(e); }
+  });
+})();
 </script>
 
 {% endblock %}
