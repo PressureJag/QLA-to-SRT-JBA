@@ -24,23 +24,66 @@
         <span class="papers-title">&#128196; Exam Paper Questions</span>
         <span class="papers-optional-tag">Optional</span>
       </div>
-      <p class="papers-hint">
-        Upload the original exam papers (.doc or .docx) to dramatically improve SRT question quality
-        and unlock question-level insight in the Department Overview.
-      </p>
-      <div class="papers-row">
-        <div class="paper-upload">
-          <label class="paper-label" for="paper1">Paper 1</label>
-          <label class="btn btn-secondary btn-sm paper-btn" for="paper1">Choose file</label>
-          <input type="file" id="paper1" name="paper1" accept=".doc,.docx" style="display:none">
-          <span class="paper-chosen" id="paper1Chosen">No file chosen</span>
+      <p class="papers-hint">Upload the original exam papers to unlock question tooltips and improve SRT quality. Fill in individual slots, or use the smart upload to select all files at once.</p>
+
+      <div class="smart-upload-row">
+        <label class="btn btn-secondary btn-sm smart-upload-btn" for="smartUpload">
+          &#128196; Upload all papers at once&hellip;
+        </label>
+        <input type="file" id="smartUpload" accept=".doc,.docx" multiple style="display:none">
+        <span class="smart-upload-status" id="smartStatus"></span>
+      </div>
+
+      <div class="papers-groups">
+
+        <div class="paper-group-row">
+          <span class="paper-group-label">Core Plus</span>
+          <div class="paper-slots">
+            <div class="paper-slot">
+              <span class="paper-slot-num">Paper 1</span>
+              <label class="btn btn-secondary btn-sm paper-btn" for="cp1">Choose</label>
+              <input type="file" id="cp1" name="papers" accept=".doc,.docx" style="display:none">
+              <span class="paper-chosen" id="cp1Chosen">No file</span>
+            </div>
+            <div class="paper-slot">
+              <span class="paper-slot-num">Paper 2</span>
+              <label class="btn btn-secondary btn-sm paper-btn" for="cp2">Choose</label>
+              <input type="file" id="cp2" name="papers" accept=".doc,.docx" style="display:none">
+              <span class="paper-chosen" id="cp2Chosen">No file</span>
+            </div>
+          </div>
         </div>
-        <div class="paper-upload">
-          <label class="paper-label" for="paper2">Paper 2</label>
-          <label class="btn btn-secondary btn-sm paper-btn" for="paper2">Choose file</label>
-          <input type="file" id="paper2" name="paper2" accept=".doc,.docx" style="display:none">
-          <span class="paper-chosen" id="paper2Chosen">No file chosen</span>
+
+        <div class="paper-group-row">
+          <span class="paper-group-label">Nurture</span>
+          <div class="paper-slots">
+            <div class="paper-slot">
+              <span class="paper-slot-num">Paper 1</span>
+              <label class="btn btn-secondary btn-sm paper-btn" for="n1">Choose</label>
+              <input type="file" id="n1" name="papers" accept=".doc,.docx" style="display:none">
+              <span class="paper-chosen" id="n1Chosen">No file</span>
+            </div>
+            <div class="paper-slot">
+              <span class="paper-slot-num">Paper 2</span>
+              <label class="btn btn-secondary btn-sm paper-btn" for="n2">Choose</label>
+              <input type="file" id="n2" name="papers" accept=".doc,.docx" style="display:none">
+              <span class="paper-chosen" id="n2Chosen">No file</span>
+            </div>
+          </div>
         </div>
+
+        <div class="paper-group-row">
+          <span class="paper-group-label">Extension</span>
+          <div class="paper-slots">
+            <div class="paper-slot">
+              <span class="paper-slot-num">Paper 1</span>
+              <label class="btn btn-secondary btn-sm paper-btn" for="ext1">Choose</label>
+              <input type="file" id="ext1" name="papers" accept=".doc,.docx" style="display:none">
+              <span class="paper-chosen" id="ext1Chosen">No file</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -51,19 +94,20 @@
 </div>
 
 <script>
-  const input     = document.getElementById('qlaFile');
+  // ── QLA file picker ──────────────────────────────────────────────────────────
+  const qlaInput  = document.getElementById('qlaFile');
   const chosen    = document.getElementById('fileChosen');
   const submitBtn = document.getElementById('submitBtn');
   const dropZone  = document.getElementById('dropZone');
 
-  input.addEventListener('change', () => {
-    if (input.files.length) {
-      chosen.textContent = input.files[0].name;
+  qlaInput.addEventListener('change', () => {
+    if (qlaInput.files.length) {
+      chosen.textContent = qlaInput.files[0].name;
       submitBtn.disabled = false;
     }
   });
 
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
   dropZone.addEventListener('drop', e => {
     e.preventDefault();
@@ -72,17 +116,67 @@
     if (file) {
       const dt = new DataTransfer();
       dt.items.add(file);
-      input.files = dt.files;
+      qlaInput.files = dt.files;
       chosen.textContent = file.name;
       submitBtn.disabled = false;
     }
   });
 
-  ['paper1', 'paper2'].forEach(id => {
+  // ── Individual slot change labels ────────────────────────────────────────────
+  ['cp1','cp2','n1','n2','ext1'].forEach(function(id) {
     document.getElementById(id).addEventListener('change', function() {
-      const label = document.getElementById(id + 'Chosen');
-      label.textContent = this.files.length ? this.files[0].name : 'No file chosen';
+      document.getElementById(id + 'Chosen').textContent =
+        this.files.length ? this.files[0].name : 'No file';
     });
+  });
+
+  // ── Smart multi-file upload ──────────────────────────────────────────────────
+  // Maps detected (group, paper) → slot input id
+  var SLOT_MAP = {
+    'cp_1': 'cp1', 'cp_2': 'cp2',
+    'n_1':  'n1',  'n_2':  'n2',
+    'ext_1':'ext1',
+  };
+
+  function detectSlot(filename) {
+    var name = filename.toLowerCase();
+    var group = null;
+    if      (name.indexOf('core plus') !== -1 || name.indexOf('core_plus') !== -1) group = 'cp';
+    else if (name.indexOf('nurture')   !== -1 || name.indexOf('numeracy')  !== -1) group = 'n';
+    else if (name.indexOf('extension') !== -1 || name.indexOf(' ext ')     !== -1) group = 'ext';
+    if (!group) return null;
+    var paper = (name.indexOf('paper 2') !== -1 || name.indexOf('paper2') !== -1) ? '2' : '1';
+    return group + '_' + paper;
+  }
+
+  function assignToSlot(slotId, file) {
+    var input = document.getElementById(slotId);
+    var dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    document.getElementById(slotId + 'Chosen').textContent = file.name;
+  }
+
+  document.getElementById('smartUpload').addEventListener('change', function() {
+    var files = Array.from(this.files);
+    var placed = [], unplaced = [];
+
+    files.forEach(function(file) {
+      var slot = detectSlot(file.name);
+      if (slot && SLOT_MAP[slot]) {
+        assignToSlot(SLOT_MAP[slot], file);
+        placed.push(file.name);
+      } else {
+        unplaced.push(file.name);
+      }
+    });
+
+    var statusEl = document.getElementById('smartStatus');
+    var parts = [];
+    if (placed.length)   parts.push('&#10003; Placed ' + placed.length + ' file' + (placed.length > 1 ? 's' : ''));
+    if (unplaced.length) parts.push('&#9888; Could not place: ' + unplaced.join(', ') + ' — assign manually below');
+    statusEl.innerHTML = parts.join(' &nbsp;|&nbsp; ');
+    statusEl.className = 'smart-upload-status' + (unplaced.length ? ' status-warn' : ' status-ok');
   });
 </script>
 {% endblock %}

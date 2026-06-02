@@ -48,21 +48,23 @@ def _sheets_for_group(wb, code):
     ]
 
 
-def parse_sheet(ws, class_filter=None):
+def parse_sheet(ws, class_filter=None, paper=1):
     all_rows = list(ws.iter_rows(values_only=True))
     qnum_row_idx, q_start_col = _find_anchor(all_rows)
     if qnum_row_idx is None:
         return None
 
     topic_row  = all_rows[qnum_row_idx - 1]
+    qnum_row   = all_rows[qnum_row_idx]        # the actual Q-number row
     header_row = all_rows[qnum_row_idx + 1]
     data_start = qnum_row_idx + 2
     class_col  = q_start_col - 1
 
     questions = []
     for col in range(q_start_col, len(topic_row)):
-        topic = topic_row[col] if col < len(topic_row) else None
-        marks = header_row[col] if col < len(header_row) else None
+        topic    = topic_row[col] if col < len(topic_row) else None
+        marks    = header_row[col] if col < len(header_row) else None
+        q_number = qnum_row[col]   if col < len(qnum_row)  else None
         if topic is None and marks is None:
             break
         if not isinstance(marks, (int, float)):
@@ -75,6 +77,8 @@ def parse_sheet(ws, class_filter=None):
             "col":          col,
             "scores":       [],
             "class_scores": {},
+            "q_number":     str(q_number) if q_number is not None else None,
+            "paper":        paper,
         })
 
     if not questions:
@@ -106,6 +110,8 @@ def merge_questions(sheet_q_lists):
                     "max_marks":    q["max_marks"],
                     "scores":       [],
                     "class_scores": {},
+                    "q_number":     q.get("q_number"),
+                    "paper":        q.get("paper", 1),
                 }
             merged[key]["scores"].extend(q["scores"])
             for cls, sc in q["class_scores"].items():
@@ -194,6 +200,54 @@ def _score_band(pct):
     return "band-high"
 
 
+def _qbank_lookup(question_bank, q_number, paper, group_code, topic):
+    """
+    Look up exam question text using the Q-number from the QLA.
+
+    Tries group-specific keys first (e.g. "CP_6a", "CP_6") so different
+    ability groups that sit different papers don't cross-contaminate.
+    Falls back to unprefixed keys for single-group / legacy question banks.
+
+    Key formats in question_bank:
+      Group-specific: "{group}_{p2prefix}{qnum}"  e.g. "CP_6a", "N_P2_8"
+      Legacy fallback: "{p2prefix}{qnum}"          e.g. "6a", "P2_8"
+    """
+    if not question_bank:
+        return None
+    p2 = "P2_" if paper == 2 else ""
+    if q_number is None:
+        return None
+    qstr = str(q_number)
+    base = re.sub(r"[a-z]+$", "", qstr, flags=re.I)
+
+    def _get(key):
+        v = question_bank.get(key)
+        return v.get("text") if v else None
+
+    # 1. Group-specific exact match
+    if group_code:
+        result = _get(f"{group_code}_{p2}{qstr}")
+        if result:
+            return result
+        # 2. Group-specific base (strip sub-part letters)
+        if base != qstr:
+            result = _get(f"{group_code}_{p2}{base}")
+            if result:
+                return result
+
+    # 3. Unprefixed exact match (fallback / legacy)
+    result = _get(f"{p2}{qstr}")
+    if result:
+        return result
+    # 4. Unprefixed base
+    if base != qstr:
+        result = _get(f"{p2}{base}")
+        if result:
+            return result
+
+    return None
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def scan_qla(filepath):
@@ -242,8 +296,13 @@ def deep_analyse_qla(filepath, question_bank=None):
         all_classes = get_all_classes(wb, sheets)
 
         # Merge all sheets without a class filter to get full topic/class_scores data
-        all_sheet_qs = [qs for s in sheets for qs in [parse_sheet(wb[s])] if qs]
-        merged       = merge_questions(all_sheet_qs)
+        all_sheet_qs = []
+        for s in sheets:
+            paper_num = 2 if "paper 2" in s.lower() else 1
+            qs = parse_sheet(wb[s], paper=paper_num)
+            if qs:
+                all_sheet_qs.append(qs)
+        merged = merge_questions(all_sheet_qs)
 
         # Detect if this file has any student score data at all
         has_scores = any(q["scores"] for q in merged)
@@ -268,7 +327,7 @@ def deep_analyse_qla(filepath, question_bank=None):
                         "max_marks":     q["max_marks"],
                         **stats,
                         "band":          _score_band(stats["avg_pct"]),
-                        "question_text": (question_bank or {}).get(q["topic"], {}).get("text"),
+                        "question_text": _qbank_lookup(question_bank, q.get("q_number"), q.get("paper", 1), code, q["topic"]),
                     })
 
             cls_topic_stats.sort(key=lambda x: x["avg_pct"])
@@ -303,8 +362,11 @@ def deep_analyse_qla(filepath, question_bank=None):
             row = {
                 "topic":         q["topic"],
                 "max_marks":     q["max_marks"],
+                "q_number":      q.get("q_number"),
+                "paper":         q.get("paper", 1),
+                "group_code":    code,
                 "class_data":    {},
-                "question_text": (question_bank or {}).get(q["topic"], {}).get("text"),
+                "question_text": _qbank_lookup(question_bank, q.get("q_number"), q.get("paper", 1), code, q["topic"]),
             }
             all_scores = []
             for cls in all_classes:
@@ -369,6 +431,14 @@ def deep_analyse_qla(filepath, question_bank=None):
     output["cohort_avg"]      = round(sum(all_group_avgs) / len(all_group_avgs), 1) if all_group_avgs else None
 
     # ── Cross-group weak topics (only when scores exist) ─────────────────
+    # Build a topic → (q_number, paper, group_code) map from the heatmaps for lookup
+    all_topic_qinfo = {}
+    for grp in output["groups"].values():
+        for row in grp.get("topic_heatmap", []):
+            t = row["topic"]
+            if t not in all_topic_qinfo:
+                all_topic_qinfo[t] = (row.get("q_number"), row.get("paper", 1), row.get("group_code"))
+
     weak_map = {}
     for code, group_data in output["groups"].items():
         for row in group_data["topic_heatmap"]:
@@ -380,7 +450,13 @@ def deep_analyse_qla(filepath, question_bank=None):
         [{"topic":         t,
           "groups":        g,
           "min_pct":       min(x["avg_pct"] for x in g),
-          "question_text": (question_bank or {}).get(t, {}).get("text")}
+          "question_text": _qbank_lookup(
+              question_bank,
+              all_topic_qinfo.get(t, (None, 1, None))[0],
+              all_topic_qinfo.get(t, (None, 1, None))[1],
+              all_topic_qinfo.get(t, (None, 1, None))[2],
+              t,
+          )}
          for t, g in weak_map.items() if len(g) >= 2],
         key=lambda x: x["min_pct"],
     )

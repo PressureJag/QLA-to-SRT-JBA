@@ -48,6 +48,35 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/debug/questions")
+def debug_questions():
+    """Diagnostic view: shows parsed question bank keys vs QLA topic names."""
+    from analyser import deep_analyse_qla
+    qla_path = session.get("qla_path")
+    qbank    = _load_question_bank()
+
+    qla_topics = []
+    if qla_path and Path(qla_path).exists():
+        try:
+            analysis = deep_analyse_qla(qla_path)
+            for code, group in analysis["groups"].items():
+                for row in group.get("topic_heatmap", []):
+                    qla_topics.append(row["topic"])
+        except Exception as e:
+            qla_topics = [f"Error: {e}"]
+
+    return f"""<pre style="font-family:monospace;font-size:13px;padding:1rem">
+=== QUESTION BANK KEYS (from uploaded paper) ===
+{json.dumps(list(qbank.keys()), indent=2)}
+
+=== SAMPLE QUESTION TEXTS ===
+{json.dumps({k: v.get('text','')[:120] for k,v in list(qbank.items())[:5]}, indent=2)}
+
+=== QLA TOPIC NAMES (what we need to match against) ===
+{json.dumps(list(dict.fromkeys(qla_topics)), indent=2)}
+</pre>"""
+
+
 def _save_upload(file_obj, allowed_exts):
     """Save an uploaded file and return its Path, or None if invalid."""
     if not file_obj or not file_obj.filename:
@@ -75,10 +104,11 @@ def upload():
     save_path   = UPLOAD_FOLDER / unique_name
     f.save(save_path)
 
-    # Optional exam paper uploads (Paper 1 / Paper 2)
-    p1 = _save_upload(request.files.get("paper1"), {"doc", "docx"})
-    p2 = _save_upload(request.files.get("paper2"), {"doc", "docx"})
-    question_bank = parse_papers(p1, p2)
+    # Optional exam paper uploads — accept any number of papers across groups
+    paper_files  = request.files.getlist("papers")
+    saved_papers = [_save_upload(f, {"doc", "docx"}) for f in paper_files]
+    saved_papers = [p for p in saved_papers if p]
+    question_bank = parse_papers(saved_papers)
 
     # Persist question bank as JSON so we don't re-parse on every request
     if question_bank:

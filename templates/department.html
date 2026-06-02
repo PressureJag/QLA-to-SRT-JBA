@@ -113,8 +113,8 @@
         {% for topic in cls.topics[:5] %}
         <div class="cfc-topic-row{% if loop.index <= 3 %} cfc-topic-priority{% endif %}">
           <div class="cfc-topic-top">
-            <span class="cfc-topic-num{% if loop.index <= 3 %} cfc-topic-num-hot{% endif %}{% if topic.question_text %} has-question-num{% endif %}"
-                  {% if topic.question_text %}data-question="{{ topic.question_text | e }}"{% endif %}>{{ loop.index }}</span>
+            <span class="cfc-topic-num{% if loop.index <= 3 %} cfc-topic-num-hot{% endif %} has-question-num"
+                  data-question="{% if topic.question_text %}{{ topic.question_text | e }}{% else %}No question uploaded yet. Go to the upload page and add the exam papers for this group to see the real question for: {{ topic.topic | e }}{% endif %}">{{ loop.index }}</span>
             <span class="cfc-topic-name" title="{{ topic.topic }}">{{ topic.topic }}</span>
             <span class="cfc-topic-pct {{ topic.band }}">{{ topic.avg_pct }}%</span>
           </div>
@@ -198,7 +198,7 @@
 
 {# ── Floating question tooltip ── #}
 <div class="question-tooltip" id="questionTooltip" aria-hidden="true">
-  <div class="qt-header">&#128196; Exam Question</div>
+  <div class="qt-header" id="questionTooltipHeader">&#128196; Exam Question</div>
   <div class="qt-body" id="questionTooltipBody"></div>
 </div>
 
@@ -212,10 +212,11 @@ function filterGroup(code, btn) {
 }
 
 (function () {
-  var tooltip  = document.getElementById('questionTooltip');
-  var bodyEl   = document.getElementById('questionTooltipBody');
-  var hideTimer = null;
-  var PAD = 14;
+  var tooltip    = document.getElementById('questionTooltip');
+  var headerEl   = document.getElementById('questionTooltipHeader');
+  var bodyEl     = document.getElementById('questionTooltipBody');
+  var hideTimer  = null;
+  var PAD        = 14;
 
   function place(e) {
     var tw = tooltip.offsetWidth  || 320;
@@ -230,6 +231,11 @@ function filterGroup(code, btn) {
 
   function show(text, e) {
     clearTimeout(hideTimer);
+    var isDemo = text.indexOf('No question uploaded') !== -1;
+    headerEl.innerHTML = isDemo
+      ? '&#128203; Demo Preview'
+      : '&#128196; Exam Question';
+    tooltip.style.borderTopColor = isDemo ? '#f5a623' : '#1f497d';
     bodyEl.textContent = text.length > 450 ? text.slice(0, 450) + '…' : text;
     place(e);
     tooltip.classList.add('qt-visible');
