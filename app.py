@@ -76,8 +76,8 @@ def upload():
     f.save(save_path)
 
     # Optional exam paper uploads (Paper 1 / Paper 2)
-    p1 = _save_upload(request.files.get("paper1"), {"docx"})
-    p2 = _save_upload(request.files.get("paper2"), {"docx"})
+    p1 = _save_upload(request.files.get("paper1"), {"doc", "docx"})
+    p2 = _save_upload(request.files.get("paper2"), {"doc", "docx"})
     question_bank = parse_papers(p1, p2)
 
     # Persist question bank as JSON so we don't re-parse on every request
