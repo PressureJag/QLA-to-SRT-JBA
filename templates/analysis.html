@@ -347,11 +347,15 @@
       <div class="ooc-lock">Use /New Skill to enable</div>
     </div>
 
-    <div class="output-option-card locked">
+    <div class="output-option-card enabled">
       <div class="ooc-icon">&#128196;</div>
       <div class="ooc-title">Department Overview</div>
-      <div class="ooc-desc">Cohort-wide summary suitable for line managers or HoD</div>
-      <div class="ooc-lock">Use /New Skill to enable</div>
+      <div class="ooc-desc">Starter targets, full heatmaps &amp; cross-group priority topics</div>
+      <div class="ooc-badge">Ready</div>
+      <a href="/department" class="btn btn-primary btn-generate"
+         {% if not data.has_any_scores %}style="pointer-events:none;opacity:0.45" title="Needs student scores"{% endif %}>
+        {% if data.has_any_scores %}View Department Overview{% else %}Needs score data{% endif %}
+      </a>
     </div>
 
   </div>

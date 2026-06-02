@@ -110,6 +110,39 @@ def generate_srt():
     return render_template("srt_results.html", files=files, analysis=analysis)
 
 
+# ── Department Overview ───────────────────────────────────────────────────────
+
+@app.route("/department")
+def department():
+    qla_path = session.get("qla_path")
+    if not qla_path or not Path(qla_path).exists():
+        return redirect(url_for("index"))
+
+    try:
+        analysis = deep_analyse_qla(qla_path)
+    except Exception as e:
+        return render_template("index.html", error=f"Could not re-read file: {e}")
+
+    if not analysis.get("has_any_scores"):
+        return render_template(
+            "analysis.html",
+            data=analysis,
+            generate_error="Department Overview requires a QLA file with student scores.",
+        )
+
+    # Pre-sort classes weakest first for each group so template stays clean
+    for group in analysis["groups"].values():
+        if group.get("has_scores"):
+            group["sorted_classes"] = sorted(
+                group["classes"].items(),
+                key=lambda x: x[1]["overall_avg_pct"] or 0,
+            )
+        else:
+            group["sorted_classes"] = []
+
+    return render_template("department.html", data=analysis)
+
+
 # ── Downloads ─────────────────────────────────────────────────────────────────
 
 @app.route("/download/<path:filename>")

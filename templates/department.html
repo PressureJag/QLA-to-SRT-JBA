@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block content %}
+
+{# ── Nav bar ── #}
+<div class="dept-nav no-print">
+  <a href="javascript:history.back()" class="btn btn-secondary btn-sm">&#8592; Back to Analysis</a>
+  <div style="display:flex;align-items:center;gap:0.5rem;">
+    <span style="font-size:0.8rem;color:#888;">Year {{ data.year_group }} &middot; Department View</span>
+    <button onclick="window.print()" class="btn btn-secondary btn-sm">&#128424; Print</button>
+  </div>
+</div>
+
+{# ── Hero ── #}
+<div class="dept-hero">
+  <div class="dept-hero-content">
+    <div>
+      <div class="dept-hero-title">Year {{ data.year_group }} &mdash; Department Overview</div>
+      <div class="dept-hero-meta">{{ data.filename }} &middot; Analysed {{ data.analysed_at }}</div>
+    </div>
+    <div class="dept-stat-row">
+      <div class="dept-stat">
+        <div class="dept-stat-val">{{ data.total_students }}</div>
+        <div class="dept-stat-label">Students</div>
+      </div>
+      <div class="dept-stat">
+        <div class="dept-stat-val">{{ data.num_classes }}</div>
+        <div class="dept-stat-label">Classes</div>
+      </div>
+      <div class="dept-stat">
+        <div class="dept-stat-val">{{ data.cohort_avg }}%</div>
+        <div class="dept-stat-label">Cohort Avg</div>
+      </div>
+      <div class="dept-stat dept-stat-alert">
+        <div class="dept-stat-val">{{ data.cross_group_weak | length }}</div>
+        <div class="dept-stat-label">Priority Topics</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Priority Starter Targets ── #}
+{% if data.cross_group_weak %}
+<div class="dept-section">
+  <div class="dept-section-title-row">
+    <div>
+      <h3 class="dept-section-title">&#9889; Priority Starter Targets</h3>
+      <p class="dept-section-sub">Weak across multiple ability groups &mdash; include in <strong>all</strong> lesson starters for maximum impact</p>
+    </div>
+  </div>
+  <div class="priority-grid">
+    {% for item in data.cross_group_weak %}
+    <div class="priority-card">
+      <div class="priority-card-rank">{{ loop.index }}</div>
+      <div class="priority-card-body">
+        <div class="priority-card-topic">{{ item.topic }}</div>
+        <div class="priority-card-groups">
+          {% for g in item.groups %}
+          <span class="priority-group-pill {{ 'band-vlow' if g.avg_pct < 40 else ('band-low' if g.avg_pct < 55 else 'band-mid') }}">
+            {{ g.group_name }}: {{ g.avg_pct }}%
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="priority-card-worst">
+        <span class="dept-pct-badge {{ 'band-vlow' if item.min_pct < 40 else ('band-low' if item.min_pct < 55 else 'band-mid') }}">{{ item.min_pct }}%</span>
+        <span style="font-size:0.62rem;color:#aaa;display:block;margin-top:0.15rem;text-align:center">worst avg</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ── Class Starter Focus Cards ── #}
+<div class="dept-section">
+  <div class="dept-section-title-row">
+    <div>
+      <h3 class="dept-section-title">&#128203; Class Starter Focus Targets</h3>
+      <p class="dept-section-sub">Top 5 weakest topics per class &mdash; sorted weakest class first. Prioritise <span style="color:#c62828;font-weight:700">&#9679; top 3</span> in every lesson opener.</p>
+    </div>
+    <div class="group-tabs no-print">
+      <button class="group-tab active" onclick="filterGroup('ALL', this)">All Classes</button>
+      {% for group_code, group in data.groups.items() %}
+      {% if group.has_scores %}
+      <button class="group-tab" onclick="filterGroup('{{ group_code }}', this)">
+        {{ group.name }}<span class="tab-count">{{ group.num_classes }}</span>
+      </button>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="class-focus-grid" id="class-focus-grid">
+    {% for group_code, group in data.groups.items() %}
+    {% if group.has_scores %}
+    {% for class_name, cls in group.sorted_classes %}
+    <div class="class-focus-card" data-group="{{ group_code }}">
+      <div class="cfc-header {{ cls.band }}">
+        <div class="cfc-header-left">
+          <span class="cfc-class-name">{{ class_name }}</span>
+          <span class="badge badge-{{ group.ability | lower }}">{{ group.ability }}</span>
+        </div>
+        <div class="cfc-header-right">
+          <span class="cfc-overall-pct">{{ cls.overall_avg_pct }}%</span>
+          <span class="cfc-rank-label">#{{ cls.rank_in_group }}/{{ group.num_classes }} in group</span>
+        </div>
+      </div>
+      <div class="cfc-body">
+        <div class="cfc-starter-label">&#9654; STARTER FOCUS TOPICS</div>
+        {% for topic in cls.topics[:5] %}
+        <div class="cfc-topic-row{% if loop.index <= 3 %} cfc-topic-priority{% endif %}">
+          <div class="cfc-topic-top">
+            <span class="cfc-topic-num{% if loop.index <= 3 %} cfc-topic-num-hot{% endif %}">{{ loop.index }}</span>
+            <span class="cfc-topic-name" title="{{ topic.topic }}">{{ topic.topic }}</span>
+            <span class="cfc-topic-pct {{ topic.band }}">{{ topic.avg_pct }}%</span>
+          </div>
+          <div class="cfc-bar-wrap">
+            <div class="cfc-bar-fill" style="width:{{ topic.avg_pct }}%;background:{{ '#ef5350' if topic.band == 'band-vlow' else ('#ff7043' if topic.band == 'band-low' else ('#ffca28' if topic.band == 'band-mid' else ('#66bb6a' if topic.band == 'band-good' else '#42a5f5'))) }}"></div>
+          </div>
+        </div>
+        {% if loop.index == 3 and cls.topics | length > 3 %}
+        <div class="cfc-divider-label">additional focus areas</div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <div class="cfc-footer">
+        <span>{{ cls.student_count }} students</span>
+        {% if cls.vs_group_avg is not none %}
+        <span class="{{ 'delta-pos' if cls.vs_group_avg >= 0 else 'delta-neg' }}">
+          {{ '+' if cls.vs_group_avg >= 0 else '' }}{{ cls.vs_group_avg }}% vs group avg
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Full Department Heatmap per Group ── #}
+{% for group_code, group in data.groups.items() %}
+{% if group.has_scores and group.topic_heatmap %}
+<div class="dept-section">
+  <div class="dept-section-title-row">
+    <div>
+      <h3 class="dept-section-title">
+        &#128202; {{ group.name }} &mdash; Full Topic Heatmap
+        <span class="badge badge-{{ group.ability | lower }}">{{ group.ability }}</span>
+      </h3>
+      <p class="dept-section-sub">All {{ group.num_topics }} topics &times; all classes &middot; sorted weakest topic first &middot; group avg {{ group.group_avg_pct }}%</p>
+    </div>
+  </div>
+  <div class="legend-row" style="margin-bottom:0.75rem">
+    <span class="legend-item"><span class="swatch band-vlow"></span>&lt;30%</span>
+    <span class="legend-item"><span class="swatch band-low"></span>30&ndash;50%</span>
+    <span class="legend-item"><span class="swatch band-mid"></span>50&ndash;65%</span>
+    <span class="legend-item"><span class="swatch band-good"></span>65&ndash;80%</span>
+    <span class="legend-item"><span class="swatch band-high"></span>&gt;80%</span>
+  </div>
+  <div class="table-scroll">
+    <table class="heatmap-table">
+      <thead>
+        <tr>
+          <th class="topic-col">Topic</th>
+          {% for cls_name in group.all_classes %}<th>{{ cls_name }}</th>{% endfor %}
+          <th class="group-avg-col">Group Avg</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in group.topic_heatmap %}
+        <tr>
+          <td class="topic-col">{{ row.topic }}</td>
+          {% for cls_name in group.all_classes %}
+            {% set cd = row.class_data.get(cls_name) %}
+            {% if cd %}
+            <td class="heat-cell {{ cd.band }}" title="{{ cls_name }}: {{ cd.avg_pct }}%">{{ cd.avg_pct }}%</td>
+            {% else %}
+            <td class="heat-cell band-none">—</td>
+            {% endif %}
+          {% endfor %}
+          <td class="heat-cell group-avg-col {{ row.band }}"><strong>{{ row.group_avg_pct }}%</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<script>
+function filterGroup(code, btn) {
+  document.querySelectorAll('.class-focus-card').forEach(function(card) {
+    card.style.display = (code === 'ALL' || card.dataset.group === code) ? '' : 'none';
+  });
+  document.querySelectorAll('.group-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+}
+</script>
+
+{% endblock %}
