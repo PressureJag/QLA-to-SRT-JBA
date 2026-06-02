@@ -44,10 +44,26 @@ def _client():
 
 def generate_class_questions(class_name, group_name, ability, fmt, weak_topics, year_group):
     """Call Claude to produce 1 question per weak topic for a single class."""
-    topics_lines = "\n".join(
-        f"{i+1}. {t['topic']} — class avg {t['avg_pct']:.1f}%  "
-        f"({int(t['max_marks'])} mark{'s' if t['max_marks'] != 1 else ''})"
-        for i, t in enumerate(weak_topics)
+    has_exam_questions = any(t.get("question_text") for t in weak_topics)
+
+    topic_blocks = []
+    for i, t in enumerate(weak_topics):
+        line = (
+            f"{i+1}. {t['topic']} — class avg {t['avg_pct']:.1f}%  "
+            f"({int(t['max_marks'])} mark{'s' if t['max_marks'] != 1 else ''})"
+        )
+        if t.get("question_text"):
+            excerpt = t["question_text"][:300].rstrip()
+            line += f"\n   [Original exam question: {excerpt}]"
+        topic_blocks.append(line)
+
+    topics_lines = "\n".join(topic_blocks)
+
+    question_rule = (
+        "Where an original exam question is shown, write an SRT question that directly "
+        "practises the same sub-skill and mirrors the style of that exam question."
+        if has_exam_questions else
+        "Each question must test the exact skill named in the topic."
     )
 
     prompt = f"""You are an expert secondary maths teacher at {SCHOOL_NAME} writing SRT (Student Response Time) intervention questions.
@@ -64,7 +80,7 @@ Task: write EXACTLY 1 question for each topic.
 Question style: {FORMAT_GUIDE.get(fmt, FORMAT_GUIDE['short_answer'])}
 
 Rules:
-- Each question must test the exact skill named in the topic
+- {question_rule}
 - Match difficulty to {ability} ability Year {year_group}
 - Topics below 35% average: use a scaffolded, accessible approach
 - No answers shown (except Answer: line for multiple choice)

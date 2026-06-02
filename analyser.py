@@ -214,7 +214,7 @@ def scan_qla(filepath):
     return result
 
 
-def deep_analyse_qla(filepath):
+def deep_analyse_qla(filepath, question_bank=None):
     """
     Full deep analysis of a QLA file.
 
@@ -264,10 +264,11 @@ def deep_analyse_qla(filepath):
                 stats  = _topic_stats(scores, q["max_marks"])
                 if stats:
                     cls_topic_stats.append({
-                        "topic":     q["topic"],
-                        "max_marks": q["max_marks"],
+                        "topic":         q["topic"],
+                        "max_marks":     q["max_marks"],
                         **stats,
-                        "band":      _score_band(stats["avg_pct"]),
+                        "band":          _score_band(stats["avg_pct"]),
+                        "question_text": (question_bank or {}).get(q["topic"], {}).get("text"),
                     })
 
             cls_topic_stats.sort(key=lambda x: x["avg_pct"])
@@ -299,7 +300,12 @@ def deep_analyse_qla(filepath):
         # ── Topic heatmap: all topics × all classes ───────────────────────
         heatmap = []
         for q in merged:
-            row = {"topic": q["topic"], "max_marks": q["max_marks"], "class_data": {}}
+            row = {
+                "topic":         q["topic"],
+                "max_marks":     q["max_marks"],
+                "class_data":    {},
+                "question_text": (question_bank or {}).get(q["topic"], {}).get("text"),
+            }
             all_scores = []
             for cls in all_classes:
                 scores = q["class_scores"].get(cls, [])
@@ -371,7 +377,10 @@ def deep_analyse_qla(filepath):
                     "group_code": code, "group_name": group_data["name"], "avg_pct": row["group_avg_pct"],
                 })
     output["cross_group_weak"] = sorted(
-        [{"topic": t, "groups": g, "min_pct": min(x["avg_pct"] for x in g)}
+        [{"topic":         t,
+          "groups":        g,
+          "min_pct":       min(x["avg_pct"] for x in g),
+          "question_text": (question_bank or {}).get(t, {}).get("text")}
          for t, g in weak_map.items() if len(g) >= 2],
         key=lambda x: x["min_pct"],
     )

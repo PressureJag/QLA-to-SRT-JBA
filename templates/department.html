@@ -53,6 +53,9 @@
       <div class="priority-card-rank">{{ loop.index }}</div>
       <div class="priority-card-body">
         <div class="priority-card-topic">{{ item.topic }}</div>
+        {% if item.question_text %}
+        <div class="priority-question-text">{{ item.question_text[:180] }}{% if item.question_text | length > 180 %}&hellip;{% endif %}</div>
+        {% endif %}
         <div class="priority-card-groups">
           {% for g in item.groups %}
           <span class="priority-group-pill {{ 'band-vlow' if g.avg_pct < 40 else ('band-low' if g.avg_pct < 55 else 'band-mid') }}">
@@ -117,6 +120,9 @@
           <div class="cfc-bar-wrap">
             <div class="cfc-bar-fill" style="width:{{ topic.avg_pct }}%;background:{{ '#ef5350' if topic.band == 'band-vlow' else ('#ff7043' if topic.band == 'band-low' else ('#ffca28' if topic.band == 'band-mid' else ('#66bb6a' if topic.band == 'band-good' else '#42a5f5'))) }}"></div>
           </div>
+          {% if topic.question_text %}
+          <div class="cfc-question-text">{{ topic.question_text[:130] }}{% if topic.question_text | length > 130 %}&hellip;{% endif %}</div>
+          {% endif %}
         </div>
         {% if loop.index == 3 and cls.topics | length > 3 %}
         <div class="cfc-divider-label">additional focus areas</div>
@@ -174,7 +180,7 @@
           {% for cls_name in group.all_classes %}
             {% set cd = row.class_data.get(cls_name) %}
             {% if cd %}
-            <td class="heat-cell {{ cd.band }}" title="{{ cls_name }}: {{ cd.avg_pct }}%">{{ cd.avg_pct }}%</td>
+            <td class="heat-cell {{ cd.band }}" title="{{ cls_name }}: {{ cd.avg_pct }}%{% if row.question_text %} | {{ row.question_text[:120] }}{% endif %}">{{ cd.avg_pct }}%</td>
             {% else %}
             <td class="heat-cell band-none">—</td>
             {% endif %}

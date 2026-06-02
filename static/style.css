@@ -245,6 +245,103 @@ footer { text-align: center; padding: 1.5rem; font-size: 0.78rem; color: #999; m
   .class-breakdown-card { page-break-inside: avoid; }
 }
 
+/* ── Exam paper upload section (index page) ─────────────────────────────────── */
+.papers-section {
+  margin-top: 1.25rem;
+  background: #f5f8fd;
+  border: 1.5px dashed #b0c4de;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+}
+
+.papers-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.papers-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #1f497d;
+}
+
+.papers-optional-tag {
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.papers-hint {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.85rem;
+  line-height: 1.45;
+}
+
+.papers-row {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.paper-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.paper-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #555;
+  min-width: 50px;
+}
+
+.paper-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.paper-chosen {
+  font-size: 0.75rem;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* ── Question text displays ──────────────────────────────────────────────────── */
+.priority-question-text {
+  font-size: 0.75rem;
+  color: #7a5c00;
+  font-style: italic;
+  margin: 0.25rem 0 0.35rem;
+  line-height: 1.4;
+}
+
+.cfc-question-text {
+  font-size: 0.68rem;
+  color: #999;
+  font-style: italic;
+  margin-top: 0.2rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 /* ── Department Overview Page ───────────────────────────────────────────────── */
 .dept-nav {
   display: flex;

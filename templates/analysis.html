@@ -201,7 +201,7 @@
             {% for cls in group.all_classes %}
               {% set cd = row.class_data.get(cls) %}
               {% if cd %}
-              <td class="heat-cell {{ cd.band }}" title="{{ cls }}: {{ cd.avg_pct }}% ({{ cd.num_students }} students)">
+              <td class="heat-cell {{ cd.band }}" title="{{ cls }}: {{ cd.avg_pct }}% ({{ cd.num_students }} students){% if row.question_text %} | {{ row.question_text[:120] }}{% endif %}">
                 {{ cd.avg_pct }}%
               </td>
               {% else %}

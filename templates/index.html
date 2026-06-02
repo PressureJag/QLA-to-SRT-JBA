@@ -18,6 +18,32 @@
       <input type="file" id="qlaFile" name="qla_file" accept=".xlsx,.xls" style="display:none">
       <p class="file-chosen" id="fileChosen"></p>
     </div>
+
+    <div class="papers-section">
+      <div class="papers-header">
+        <span class="papers-title">&#128196; Exam Paper Questions</span>
+        <span class="papers-optional-tag">Optional</span>
+      </div>
+      <p class="papers-hint">
+        Upload the original exam papers (.docx) to dramatically improve SRT question quality
+        and unlock question-level insight in the Department Overview.
+      </p>
+      <div class="papers-row">
+        <div class="paper-upload">
+          <label class="paper-label" for="paper1">Paper 1</label>
+          <label class="btn btn-secondary btn-sm paper-btn" for="paper1">Choose .docx</label>
+          <input type="file" id="paper1" name="paper1" accept=".docx" style="display:none">
+          <span class="paper-chosen" id="paper1Chosen">No file chosen</span>
+        </div>
+        <div class="paper-upload">
+          <label class="paper-label" for="paper2">Paper 2</label>
+          <label class="btn btn-secondary btn-sm paper-btn" for="paper2">Choose .docx</label>
+          <input type="file" id="paper2" name="paper2" accept=".docx" style="display:none">
+          <span class="paper-chosen" id="paper2Chosen">No file chosen</span>
+        </div>
+      </div>
+    </div>
+
     <div class="submit-row">
       <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Analyse File</button>
     </div>
@@ -25,10 +51,10 @@
 </div>
 
 <script>
-  const input = document.getElementById('qlaFile');
-  const chosen = document.getElementById('fileChosen');
+  const input     = document.getElementById('qlaFile');
+  const chosen    = document.getElementById('fileChosen');
   const submitBtn = document.getElementById('submitBtn');
-  const dropZone = document.getElementById('dropZone');
+  const dropZone  = document.getElementById('dropZone');
 
   input.addEventListener('change', () => {
     if (input.files.length) {
@@ -50,6 +76,13 @@
       chosen.textContent = file.name;
       submitBtn.disabled = false;
     }
+  });
+
+  ['paper1', 'paper2'].forEach(id => {
+    document.getElementById(id).addEventListener('change', function() {
+      const label = document.getElementById(id + 'Chosen');
+      label.textContent = this.files.length ? this.files[0].name : 'No file chosen';
+    });
   });
 </script>
 {% endblock %}
